@@ -1,0 +1,58 @@
+---
+ - name: Ask for informations
+   hosts:
+    - localhost
+   vars_prompt:
+    - name: "Login"
+      prompt: "Enter your login"
+      private: no
+    - name: "Password"
+      prompt: "Enter your password"
+      private: yes
+    - name: "Template"
+      prompt: "Enter the name of the template to be used (ex:DST-SM-PRD, DST-SM-PPRD...)"
+      private: no
+    - name: "vapp_name"
+      prompt: "Enter the name of the vApp to be created"
+      private: no
+    - name: "vdc_name"
+      prompt: "Enter the name of the VDC in which the vApp will be created (ex: VDC01,VDC-DST...)"
+      private: no
+   tasks:
+   - set_fact:
+       Login: "{{ Login }}"
+   - set_fact:
+       Password: "{{ Password }}"
+   - set_fact:
+       Template: "{{ Template }}"
+   - set_fact:
+       vapp_name: "{{ vapp_name }}"
+   - set_fact:
+       vdc_name: "{{ vdc_name }}"
+ - hosts: localhost
+   connection: local
+   tasks:
+     - name: Create vAPP
+       vca_vapp:
+           host: 'https://flexible-computing-advanced.orange-business.com'
+           api_version: 5.5
+           vapp_name: "{{ vapp_name }}"
+           catalog_name: 'Jive Cloud Catalog'
+           template_name: "{{ Template }}"
+           vdc_name: "{{ vdc_name }}"
+           username: "{{ Login }}"
+           password: "{{ Password }}"
+           org: FCA_UCC-UK
+           service_type: vcd
+           state: deployed
+     - name: PowerOn vaPP
+       vca_vapp:
+           host: 'https://flexible-computing-advanced.orange-business.com'
+           api_version: 5.5
+           vapp_name: "{{ vapp_name }}"
+           vdc_name: "{{ vdc_name }}"
+           username: "{{ Login }}"
+           password: "{{ Password }}"
+           org: FCA_UCC-UK
+           service_type: vcd
+           operation: poweron
