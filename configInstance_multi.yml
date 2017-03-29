@@ -1,0 +1,225 @@
+---
+- name: Initializing
+  hosts:
+    - obs-adm-ans01
+  vars_prompt:
+     - name: "URL"
+       prompt: "Enter URL to be used by ShareSpace (without https)"
+       private: no
+     - name: "password"
+       prompt: "Enter SSH Password"
+       private: yes
+       encrypt: "sha512_crypt"
+  tasks:
+    - set_fact:
+       URL: "{{URL}}"
+       password: "{{password}}"
+- hosts: obs-adm-ans01
+  tasks:
+     - name: Copying SSH Key on APP01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-APP01
+     - name: Copying SSH Key on APP02
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-APP02
+     - name: Copying SSH Key on DB01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-DB01
+     - name: Copying SSH Key on DB02
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-DB02
+     - name: Copying SSH Key on DOC01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-DOC01
+     - name: Copying SSH Key on CAC01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-CAC01
+     - name: Copying SSH Key on EAE01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-EAE01
+     - name: Copying SSH Key on LB01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-LB01
+     - name: Copying SSH Key on SS01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-SS01
+     - name: Copying SSH Key on STG01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-STG01
+     - name: Copying SSH Key on AV01
+       command: /etc/ansible/sshkey.sh {{password}} JIVE-08-AV01
+     - name: Copying SSH Key on APP03
+       command: /etc/ansible/sshkey.sh {{password }} JIVE-08-APP03
+       when: "'Large' in groups"
+     - name: Copying SSH Key on APP04
+       command: /etc/ansible/sshkey.sh {{password }} JIVE-08-APP04
+       when: "'Large' in groups"
+- hosts: JIVE-08-APP01,JIVE-08-APP02,JIVE-08-DB01,JIVE-08-DB02,JIVE-08-LB01,JIV08-DOC01,JIVE-08-CAC01,JIVE-08-EAE01
+  tasks:
+     - name: Installing Ansible dependencies
+       yum: name=libselinux-python state=latest
+- hosts: JIVE-08-APP03,JIVE-08-APP04
+  tasks:
+     - name: Installing Ansible dependencies
+       yum: name=libselinux-python state=latest
+       when: "'Large' in groups"
+- hosts: JIVE-08-APP01
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+     - name: Wait until Jive is stopped
+       local_action:
+         module: wait_for
+         host: JIVE-08-APP01
+         port: 8080
+         delay: 90
+         timeout: 320
+         state: stopped
+- hosts: JIVE-08-APP02
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+- hosts: JIVE-08-APP03
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+       when: "'Large' in groups"
+- hosts: JIVE-08-APP04
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+       when: "'Large' in groups"
+- hosts: JIVE-08-CAC01
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+- hosts: JIVE-08-DOC01
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+- hosts: JIVE-08-EAE01
+  tasks:
+     - name: Jive stop
+       service: name=jive state=stopped
+- hosts: JIVE-08-APP01,JIVE-08-APP02
+  vars:
+    - URL: "{{ hostvars['obs-adm-ans01']['URL'] }}"
+  tasks:
+     - name: URL change on Apps servers
+       shell: service jive set webapp.http_proxy_name {{ URL | mandatory }}
+- hosts: JIVE-08-APP03,JIVE-08-APP04
+  vars:
+    - URL: "{{ hostvars['obs-adm-ans01']['URL'] }}"
+  tasks:
+     - name: URL change on Apps servers LARGE
+       shell: service jive set webapp.http_proxy_name {{ URL | mandatory }}
+       when: "'Large' in groups"
+- hosts: JIVE-08-DB01
+  vars:
+    - URL: "{{ hostvars['obs-adm-ans01']['URL'] }}"
+  tasks:
+     - name: URL change on DB server
+       script: /etc/ansible/DHT-SM-PRD/updateDB.sh {{URL | mandatory }}
+- hosts: JIVE-08-APP01,JIVE-08-APP02
+  tasks:
+     - name: Removing node.ID
+       file: path=/usr/local/jive/applications/sbs/home/node.id state=absent
+     - name: Removing jive.key on Apps servers
+       file: path=/usr/local/jive/httpd/ssl/jive.key state=absent
+     - name: Removing jive.crt on Apps servers
+       file: path=/usr/local/jive/httpd/ssl/jive.crt state=absent
+     - name: Copying jive.key on Apps servers
+       copy: src=/etc/ansible/DHT-SM-PRD/ssl/jive.key dest=/usr/local/jive/httpd/ssl/ owner=jive group=jive
+     - name: Copying jive.crt on Apps servers
+       copy: src=/etc/ansible/DHT-SM-PRD/ssl/jive.crt dest=/usr/local/jive/httpd/ssl/ owner=jive group=jive
+- hosts: JIVE-08-APP03,JIVE-08-APP04
+  tasks:
+     - name: Removing node.ID
+       file: path=/usr/local/jive/applications/sbs/home/node.id state=absent
+       when: "'Large' in groups"
+     - name: Removing jive.key on Apps servers
+       file: path=/usr/local/jive/httpd/ssl/jive.key state=absent
+       when: "'Large' in groups"
+     - name: Removing jive.crt on Apps servers
+       file: path=/usr/local/jive/httpd/ssl/jive.crt state=absent
+       when: "'Large' in groups"
+     - name: Copying jive.key on Apps servers
+       copy: src=/etc/ansible/DHT-SM-PRD/ssl/jive.key dest=/usr/local/jive/httpd/ssl/ owner=jive group=jive
+       when: "'Large' in groups"
+     - name: Copying jive.crt on Apps servers
+       copy: src=/etc/ansible/DHT-SM-PRD/ssl/jive.crt dest=/usr/local/jive/httpd/ssl/ owner=jive group=jive
+       when: "'Large' in groups"
+- hosts: JIVE-08-LB01
+  tasks:
+     - name: Removing jive.pem on HAproxy
+       file: path=/etc/haproxy/ssl/jive.pem state=absent
+     - name: Copying jive.pem on Haproxy
+       copy: src=/etc/ansible/DHT-SM-PRD/ssl/jive.pem dest=/etc/haproxy/ssl/ owner=root group=root
+- hosts: JIVE-08-APP01
+  tasks:
+     - name: Jive start APP01
+       service: name=jive state=restarted
+     - name: Wait until Jive is available
+       local_action:
+         module: wait_for
+         host: JIVE-08-APP01
+         port: 8080
+         delay: 90
+         timeout: 320
+         state: started
+- hosts: JIVE-08-APP01
+  tasks:
+     - name: Jive stop APP01
+       service: name=jive state=stopped
+- hosts: JIVE-08-APP01
+  tasks:
+     - name: Retrieving node.id
+       shell: cat /usr/local/jive/applications/sbs/home/node.id
+       register: nodeID
+- hosts: JIVE-08-DB01
+  tasks:
+     - name: Copying InstanceID on DB01
+       script: /etc/ansible/DHT-SM-PRD/instanceID.sh {{ hostvars['JIVE-08-APP01']['nodeID']['stdout'] }}
+- hosts: JIVE-08-EAE01
+  tasks:
+     - name: Replacing InstanceID
+       replace:
+         dest=/usr/local/jive/services/eae-service/etc/instance_properties.json
+         regexp='\".*\-.*\-.*\-.*\-.*\"'
+         replace='"{{ hostvars['JIVE-08-APP01']['nodeID']['stdout'] }}"'
+- hosts: JIVE-08-CAC01
+  tasks:
+     - name: Jive start
+       service: name=jive state=restarted
+- hosts: JIVE-08-APP01
+  tasks:
+     - name: Jive start APP01
+       service: name=jive state=restarted
+     - name: Wait until Jive is available
+       local_action:
+         module: wait_for
+         host: JIVE-08-APP01
+         port: 8080
+         delay: 90
+         timeout: 320
+         state: started
+- hosts: JIVE-08-APP02
+  tasks:
+     - name: Jive start APP02
+       service: name=jive state=restarted
+- hosts: JIVE-08-APP03
+  tasks:
+     - name: Jive start APP03
+       service: name=jive state=restarted
+       when: "'Large' in groups"
+- hosts: JIVE-08-APP04
+  tasks:
+     - name: Jive start APP04
+       service: name=jive state=restarted
+       when: "'Large' in groups"
+- hosts: JIVE-08-DOC01
+  tasks:
+     - name: Jive start
+       service: name=jive state=restarted
+- hosts: JIVE-08-EAE01
+  tasks:
+     - name: Jive start
+       service: name=jive state=restarted
+- hosts: JIVE-08-LB01
+  tasks:
+     - name: HAProxy Reload
+       service: name=haproxy state=reloaded
+- hosts: obs-adm-ans01
+  tasks:
+     - name: You can access the plateform in ~15min on
+       debug: var=hostvars['obs-adm-ans01']['URL']
