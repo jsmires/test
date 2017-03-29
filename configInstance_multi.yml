@@ -1,7 +1,7 @@
 ---
 - name: Initializing
   hosts:
-    - obs-adm-ans01
+    - localhost
   vars_prompt:
      - name: "URL"
        prompt: "Enter URL to be used by ShareSpace (without https)"
